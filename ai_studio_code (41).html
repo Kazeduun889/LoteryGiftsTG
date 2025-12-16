@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gift Raffle v0.2</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            /* Темы Telegram */
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-button-color: #3390ec;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #f3f3f3;
+            --tg-theme-hint-color: #999999;
+            
+            /* Premium Colors */
+            --star-gold: #FFD700;
+            --star-orange: #ff9f0a;
+            --star-gradient: linear-gradient(135deg, #ffd700, #ff9f0a);
+            --premium-bg: rgba(255, 169, 0, 0.1);
+            --danger-color: #ff3b30;
+            --success-color: #34c759;
+        }
+
+        body {
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* --- HEADER: BALANCE --- */
+        .header {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .balance-badge {
+            display: flex;
+            align-items: center;
+            background: var(--tg-theme-secondary-bg-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* --- RAFFLE CARD --- */
+        .raffle-card {
+            margin: 10px 16px;
+            background: var(--tg-theme-secondary-bg-color);
+            border-radius: 24px;
+            padding: 24px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .timer-tag {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--danger-color);
+            background: rgba(255, 59, 48, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gift-container {
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .main-emoji {
+            font-size: 90px;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .main-emoji.shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+
+        .raffle-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .raffle-desc {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        /* --- STARS PRICING UI --- */
+        .price-display {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .star-icon-lg {
+            width: 28px;
+            height: 28px;
+            /* Градиентная заливка через SVG defs или просто цвет */
+        }
+
+        .price-text {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+
+        .price-label {
+            font-size: 28px;
+            font-weight: 900;
+            background: var(--star-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+
+        /* --- PROGRESS BAR --- */
+        .progress-container {
+            margin-top: 10px;
+            text-align: left;
+        }
+        
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .progress-bar-bg {
+            height: 8px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--tg-theme-button-color);
+            width: 75%;
+            border-radius: 4px;
+        }
+
+        /* --- BUTTON --- */
+        .btn-main {
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-main:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+        
+        /* --- LIVE FEED --- */
+        .live-feed {
+            margin: 20px 16px;
+        }
+        
+        .feed-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--tg-theme-hint-color);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .avatar-placeholder {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(45deg, #3390ec, #a770ef);
+            border-radius: 50%;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- ADMIN PANEL --- */
+        .admin-section {
+            padding: 20px;
+            display: none;
+        }
+        .admin-section.active { display: block; }
+        
+        .input-group { margin-bottom: 15px; }
+        .input-box {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            box-sizing: border-box;
+        }
+
+        /* --- NAV --- */
+        .nav-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--tg-theme-bg-color);
+            border-top: 1px solid rgba(0,0,0,0.1);
+            height: 60px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--tg-theme-hint-color);
+            cursor: pointer;
+        }
+        
+        .nav-btn.active { color: var(--tg-theme-button-color); }
+        .nav-icon { font-size: 22px; margin-bottom: 2px; }
+
+        /* SVG Sizing */
+        .star-svg {
+            width: 18px; height: 18px;
+            vertical-align: text-bottom;
+        }
+
+        /* Confetti */
+        #confetti-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- HEADER -->
+    <div class="header">
+        <div class="balance-badge">
+            <span style="margin-right: 6px;">💳</span>
+            <span>1,450</span>
+            <!-- Inline Star Icon Mini -->
+            <svg class="star-svg" viewBox="0 0 24 24" style="margin-left:4px; fill:#ff9f0a;">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- PAGE: RAFFLE -->
+    <div id="page-raffle" class="active">
+        <div class="raffle-card">
+            <div class="timer-tag">
+                <span>⏳</span> <span id="timer-val">02:14:59</span>
+            </div>
+
+            <div class="gift-container">
+                <div class="main-emoji" id="display-emoji">💻</div>
+            </div>
+
+            <h2 class="raffle-title" id="display-title">MacBook Pro M3</h2>
+            <p class="raffle-desc" id="display-desc">Эксклюзивный розыгрыш. Шанс выиграть топовый ноутбук. Результаты сегодня!</p>
+
+            <!-- PRICE UI -->
+            <div class="price-display">
+                <!-- Nice Star Icon -->
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="url(#starGradient)">
+                    <defs>
+                        <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#ff9f0a;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="price-text" id="display-price">250</span>
+                <span class="price-label">STARS</span>
+            </div>
+
+            <!-- PROGRESS BAR -->
+            <div class="progress-container">
+                <div class="progress-labels">
+                    <span>Участников</span>
+                    <span style="color:var(--tg-theme-button-color)">482/500</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill"></div>
+                </div>
+            </div>
+
+            <!-- ACTION BUTTON -->
+            <button class="btn-main" id="btn-buy" onclick="buyTicket()">
+                <span>Участвовать</span>
+            </button>
+        </div>
+
+        <!-- LIVE FEED -->
+        <div class="live-feed">
+            <div class="feed-title">Сейчас участвуют</div>
+            <div id="feed-list">
+                <!-- JS will populate this -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: ADMIN -->
+    <div id="page-admin" class="admin-section">
+        <h3>⚙️ Настройки Розыгрыша</h3>
+        <p style="font-size:12px; color:#999;">Измените параметры ниже, чтобы обновить вид главной страницы.</p>
+        
+        <div class="input-group">
+            <label>Название подарка</label>
+            <input type="text" id="inp-title" class="input-box" value="MacBook Pro M3">
+        </div>
+        
+        <div class="input-group">
+            <label>Описание</label>
+            <textarea id="inp-desc" class="input-box" rows="3">Эксклюзивный розыгрыш. Шанс выиграть топовый ноутбук.</textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Цена (Stars)</label>
+            <input type="number" id="inp-price" class="input-box" value="250">
+        </div>
+
+        <div class="input-group">
+            <label>Эмодзи подарка</label>
+            <input type="text" id="inp-emoji" class="input-box" value="💻">
+        </div>
+
+        <button class="btn-main" onclick="saveSettings()">Сохранить</button>
+    </div>
+
+</div>
+
+<!-- NAV BAR -->
+<div class="nav-bar">
+    <div class="nav-btn active" onclick="nav('raffle', this)">
+        <div class="nav-icon">🎁</div>
+        <div>Конкурс</div>
+    </div>
+    <div class="nav-btn" onclick="nav('admin', this)">
+        <div class="nav-icon">⚙️</div>
+        <div>Админка</div>
+    </div>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    // --- STATE MANAGEMENT ---
+    let state = {
+        title: "MacBook Pro M3",
+        desc: "Эксклюзивный розыгрыш. Шанс выиграть топовый ноутбук. Результаты сегодня!",
+        price: 250,
+        emoji: "💻"
+    };
+
+    function loadState() {
+        const saved = localStorage.getItem('raffle_v2');
+        if(saved) state = JSON.parse(saved);
+        render();
+    }
+
+    function render() {
+        // Update Raffle UI
+        document.getElementById('display-title').innerText = state.title;
+        document.getElementById('display-desc').innerText = state.desc;
+        document.getElementById('display-price').innerText = state.price;
+        document.getElementById('display-emoji').innerText = state.emoji;
+
+        // Update Admin Inputs
+        document.getElementById('inp-title').value = state.title;
+        document.getElementById('inp-desc').value = state.desc;
+        document.getElementById('inp-price').value = state.price;
+        document.getElementById('inp-emoji').value = state.emoji;
+    }
+
+    function saveSettings() {
+        state.title = document.getElementById('inp-title').value;
+        state.desc = document.getElementById('inp-desc').value;
+        state.price = document.getElementById('inp-price').value;
+        state.emoji = document.getElementById('inp-emoji').value;
+        
+        localStorage.setItem('raffle_v2', JSON.stringify(state));
+        
+        tg.HapticFeedback.notificationOccurred('success');
+        render();
+        nav('raffle', document.querySelectorAll('.nav-btn')[0]);
+    }
+
+    // --- NAVIGATION ---
+    function nav(page, el) {
+        document.getElementById('page-raffle').style.display = (page === 'raffle') ? 'block' : 'none';
+        document.getElementById('page-admin').style.display = (page === 'admin') ? 'block' : 'none'; // Changed to admin-section logic via class in real app but simple display works here
+        document.getElementById('page-admin').classList.toggle('active', page === 'admin');
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        tg.HapticFeedback.selectionChanged();
+    }
+
+    // --- INTERACTION ---
+    function buyTicket() {
+        const btn = document.getElementById('btn-buy');
+        const originalText = btn.innerHTML;
+        
+        tg.HapticFeedback.impactOccurred('heavy');
+        document.getElementById('display-emoji').classList.add('shake');
+        
+        btn.innerHTML = 'Обработка...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            document.getElementById('display-emoji').classList.remove('shake');
+            fireConfetti();
+            tg.ShowPopup({
+                title: 'Успешно!',
+                message: `Вы участвуете в розыгрыше ${state.emoji}. Списано ${state.price} Stars.`,
+                buttons: [{type: 'ok'}]
+            });
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            tg.HapticFeedback.notificationOccurred('success');
+        }, 1500);
+    }
+
+    // --- FAKE LIVE FEED ---
+    const names = ['Alex', 'Dmitry', 'Elena', 'Ivan', 'Olga', 'CryptoKing', 'Pavel'];
+    const feedList = document.getElementById('feed-list');
+
+    function addFeedItem() {
+        if(document.hidden) return;
+        const name = names[Math.floor(Math.random() * names.length)];
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+        item.innerHTML = `
+            <div class="avatar-placeholder">${name[0]}</div>
+            <div><b>${name}</b> купил билет за ${state.price} Stars</div>
+        `;
+        feedList.prepend(item);
+        if(feedList.children.length > 4) feedList.lastChild.remove();
+    }
+    
+    // Add fake activity every 3-7 seconds
+    setInterval(addFeedItem, 4000);
+    addFeedItem(); // initial
+
+    // --- TIMER LOGIC ---
+    let time = 2 * 60 * 60 + 14 * 60 + 59; // Fake start time
+    setInterval(() => {
+        time--;
+        const h = Math.floor(time / 3600);
+        const m = Math.floor((time % 3600) / 60);
+        const s = time % 60;
+        document.getElementById('timer-val').innerText = 
+            `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }, 1000);
+
+    // --- CONFETTI (Simple) ---
+    function fireConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let particles = [];
+        for(let i=0; i<80; i++) {
+            particles.push({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                color: `hsl(${Math.random()*360}, 100%, 50%)`,
+                life: 100
+            });
+        }
+        
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2; // gravity
+                p.life--;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 6, 6);
+                if(p.life <= 0) particles.splice(index, 1);
+            });
+            if(particles.length > 0) requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    loadState();
+</script>
+
+</body>
+</html>
